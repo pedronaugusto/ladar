@@ -1,10 +1,10 @@
 # ladar
 
-ladar tells Zig code which instruction-set extensions the CPU it runs on has, for the family's kernels that need
-more than the target's baseline: checksums, regex prefilters, cryptography. A feature the target guarantees is
-known at compile time and costs nothing; any other is detected once, on first use, and kept in one atomic cell per
-process. It depends on aegis alone and holds no kernels: a user builds each of its own as a module with the feature
-enabled (Zig sets CPU features per module) and enters it where `has` says so.
+ladar tells Zig code which instruction-set extensions the CPU it runs on has, for kernels that need more than the
+target's baseline: a checksum on carryless multiply, a string search on byte shuffles, a cipher on AES instructions.
+A feature the target guarantees is known at compile time and costs nothing; any other is detected once, on first use,
+and kept in one atomic cell per process. It depends on aegis alone and holds no kernels: a user builds each of its
+own as a module with the feature enabled (Zig sets CPU features per module) and enters it where `has` says so.
 
 ```zig
 const ladar = @import("ladar");
@@ -57,7 +57,7 @@ gives it), never detected by the user itself.
 
 ## Status
 
-Unreleased; 0.1.0 is the first release. Its detection came from warp, where it served warp's checksum kernels.
+Unreleased; 0.1.0 is the first release.
 
 ## License
 

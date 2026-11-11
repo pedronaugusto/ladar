@@ -13,5 +13,4 @@ follow [Semantic Versioning](https://semver.org/).
   and SHA); `guaranteed`, the target's at compile time; `has`, comptime-true where guaranteed and comptime-false where
   neither guaranteed nor detectable, else detected once per process; `available`, whether a kernel for a feature is
   worth building on the target; and `features`. Detection by `sysctlbyname` on Darwin, the auxiliary vector on Linux,
-  `IsProcessorFeaturePresent` on Windows, and CPUID with XGETBV on x86-64. From warp's `cpu.zig`, which held the
-  first eight features for its checksum kernels.
+  `IsProcessorFeaturePresent` on Windows, and CPUID with XGETBV on x86-64.

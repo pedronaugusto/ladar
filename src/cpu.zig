@@ -1,5 +1,5 @@
-//! The instruction-set extensions the family's kernels use, as this CPU has
-//! them: a closed list per architecture. A feature the target guarantees is
+//! The instruction-set extensions kernels beyond the target's baseline use,
+//! as this CPU has them: a closed list per architecture. A feature the target guarantees is
 //! known at compile time and costs nothing (`has` is comptime-true, no check
 //! runs); any other is detected on first use and kept: one atomic cell,
 //! written by whichever thread asks first (every writer writes the same
