@@ -6,14 +6,45 @@ A feature the target guarantees is known at compile time and costs nothing; any 
 and kept in one atomic cell per process. It depends on aegis alone and holds no kernels: a user builds each of its
 own as a module with the feature enabled (Zig sets CPU features per module) and enters it where `has` says so.
 
+## Install
+
+Requires Zig 0.17.0. Fetch with `zig fetch --save git+https://github.com/pedronaugusto/ladar`, then obtain the
+`ladar` module through `b.dependency` and add it to your module's imports. It depends on
+[aegis](https://github.com/pedronaugusto/aegis) alone. See [the design](docs/design.md) for how each feature is
+detected and the rules for adding one.
+
+## Usage
+
+Build each kernel as a module of its own with the feature enabled, and enter it where `has` says so:
+
+<!-- BEGIN GENERATED zig build docs -- dispatch -->
 ```zig
 const ladar = @import("ladar");
 
-if (comptime ladar.available(.x86_avx2)) {
-    if (ladar.has(.x86_avx2)) return kernels_avx2.search(haystack);
+fn sum(bytes: []const u8) u32 {
+    // The wide kernel is referenced only where the target can have AVX2 at all,
+    // and entered only where this CPU has it; anywhere else, the portable one.
+    if (comptime ladar.available(.x86_avx2)) {
+        if (ladar.has(.x86_avx2)) return sumWide(bytes);
+    }
+    return sumPortable(bytes);
 }
-return scalar.search(haystack);
 ```
+<!-- END GENERATED -->
+
+The whole set, for logging or a choice made once:
+
+<!-- BEGIN GENERATED zig build docs -- features -->
+```zig
+const ladar = @import("ladar");
+
+// Every feature this CPU has: at least what the target guarantees.
+const have = ladar.features();
+std.debug.assert(have.supersetOf(ladar.guaranteed));
+// A set to keep or log; `has` is the one to branch on, comptime where it can be.
+std.debug.assert(have.contains(.x86_avx2) == ladar.has(.x86_avx2));
+```
+<!-- END GENERATED -->
 
 - `has(feature)`: whether this CPU has it. Comptime-true where the target guarantees it (no check runs),
   comptime-false where it can be neither guaranteed nor detected (the kernel is never referenced), else the detected
@@ -54,6 +85,15 @@ can detect it, or a target that guarantees it. Features are added, never removed
 an addition is a minor version, so code should not switch over `Feature` exhaustively. A feature a user needs that
 is not listed is added here, with its detection on each operating system (or the line saying where only the baseline
 gives it), never detected by the user itself.
+
+## Testing
+
+`bay test` runs the units: the detected set against the target's guarantees and the operating system's report on
+the machine that runs them, and the decoding of CPUID's words and Linux's `AT_HWCAP` against the table above on any
+words (a seeded property everywhere, so x86-64 decoding is tested on AArch64 too). `bay test --fuzz` searches the
+decoding further under Zig's fuzzer, and the release tier runs it with safety on and the detection cell under
+ThreadSanitizer.
+[shakedown](https://github.com/pedronaugusto/shakedown) is a dev dependency only, for that tier's allocator.
 
 ## Status
 

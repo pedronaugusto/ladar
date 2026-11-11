@@ -38,6 +38,17 @@ pub fn dev(b: *std.Build, tools: type) void {
     const test_step = b.step("test", "Run the tests");
     test_step.dependOn(&b.addRunArtifact(tests).step);
     check.dependOn(&tests.step);
+    // The README's examples, run as part of the tests.
+    const example = b.addExecutable(.{
+        .name = "usage",
+        .root_module = b.createModule(.{ .root_source_file = p.path("examples/usage.zig"), .target = target, .optimize = optimize, .imports = &.{.{ .name = "ladar", .module = package.module("ladar") }} }),
+    });
+    const examples = b.step("examples", "Build and run the usage example");
+    examples.dependOn(&b.addRunArtifact(example).step);
+    test_step.dependOn(examples);
+    check.dependOn(&example.step);
     b.getInstallStep().dependOn(&tests.step);
-    tools.preflight.addCi(b, p, .{ .tests = test_step, .portable_tests = true });
+    // The release tier runs the decoding properties under Zig's fuzzer, and the detection
+    // cell under ThreadSanitizer.
+    tools.preflight.addCi(b, p, .{ .tests = test_step, .portable_tests = true, .hardened = .{ .fuzz_step = "test", .tsan_step = "test" } });
 }

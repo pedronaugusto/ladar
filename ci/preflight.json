@@ -12,5 +12,21 @@
   "glint_paths": [
     "src",
     "build.zig"
-  ]
+  ],
+  "docs": {
+    "zig build docs -- dispatch": {
+      "source": "examples/usage.zig",
+      "region": "dispatch",
+      "imports": [
+        "ladar"
+      ]
+    },
+    "zig build docs -- features": {
+      "source": "examples/usage.zig",
+      "region": "features",
+      "imports": [
+        "ladar"
+      ]
+    }
+  }
 }

@@ -152,7 +152,7 @@ fn detect() Set {
         else => {},
     }
     // A feature the kernels cannot use beyond the target's guarantees is
-    // not one warp has.
+    // not reported.
     inline for (comptime std.enums.values(Feature)) |f| {
         if (comptime !guaranteed.contains(f) and !detectable(f)) set.remove(f);
     }
@@ -176,16 +176,7 @@ fn detectArm(set: *Set) void {
                 if (std.c.sysctlbyname(n[0], &value, &len, null, 0) == 0 and value != 0) set.insert(n[1]);
             }
         },
-        .linux => {
-            const hwcap = std.os.linux.getauxval(std.elf.AT.HWCAP);
-            // asm/hwcap.h for arm64.
-            if (hwcap & (1 << 7) != 0) set.insert(.arm_crc);
-            if (hwcap & (1 << 4) != 0) set.insert(.arm_pmull);
-            if (hwcap & (1 << 3) != 0) set.insert(.arm_aes);
-            if (hwcap & (1 << 6) != 0) set.insert(.arm_sha2);
-            if (hwcap & (1 << 17) != 0) set.insert(.arm_sha3);
-            if (hwcap & (1 << 20) != 0) set.insert(.arm_dotprod);
-        },
+        .linux => set.setUnion(decodeHwcap(std.os.linux.getauxval(std.elf.AT.HWCAP))),
         .windows => {
             const w = std.os.windows;
             if (w.IsProcessorFeaturePresent(.ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_crc);
@@ -204,25 +195,61 @@ fn detectArm(set: *Set) void {
 
 fn detectX86(set: *Set) void {
     if (builtin.cpu.arch != .x86_64) return;
+    const max_leaf = cpuid(0, 0)[0];
     const leaf1 = cpuid(1, 0);
-    const sse41 = leaf1[2] & (1 << 19) != 0;
-    const pclmul = leaf1[2] & (1 << 1) != 0;
-    if (leaf1[2] & (1 << 9) != 0) set.insert(.x86_ssse3);
-    if (leaf1[2] & (1 << 20) != 0) set.insert(.x86_sse42);
+    const leaf7 = if (max_leaf >= 7) cpuid(7, 0) else [4]u32{ 0, 0, 0, 0 };
+    // XGETBV is an invalid instruction where the operating system has not
+    // enabled it (OSXSAVE clear).
+    const xcr0 = if (leaf1[2] & (1 << 27) != 0) xgetbv() else 0;
+    set.setUnion(decodeX86(.{ .max_leaf = max_leaf, .leaf1_ecx = leaf1[2], .leaf7_ebx = leaf7[1], .leaf7_ecx = leaf7[2], .xcr0 = xcr0 }));
+}
+
+/// What CPUID and XGETBV said: the words x86-64 detection reads.
+const X86Words = struct {
+    /// CPUID leaf 0's EAX: the highest leaf there is.
+    max_leaf: u32,
+    leaf1_ecx: u32,
+    /// Leaf 7's words, read only where `max_leaf` reaches it.
+    leaf7_ebx: u32,
+    leaf7_ecx: u32,
+    /// XCR0's low word, read only where OSXSAVE is set.
+    xcr0: u32,
+};
+
+/// The features CPUID's words say, on any target: detection on x86-64
+/// reads the registers and decodes them here, so the decoding is tested
+/// everywhere, on any words.
+fn decodeX86(w: X86Words) Set {
+    var set: Set = .empty;
+    const sse41 = w.leaf1_ecx & (1 << 19) != 0;
+    const pclmul = w.leaf1_ecx & (1 << 1) != 0;
+    if (w.leaf1_ecx & (1 << 9) != 0) set.insert(.x86_ssse3);
+    if (w.leaf1_ecx & (1 << 20) != 0) set.insert(.x86_sse42);
     if (sse41 and pclmul) set.insert(.x86_pclmul);
-    if (leaf1[2] & (1 << 25) != 0) set.insert(.x86_aes);
-    if (cpuid(0, 0)[0] < 7) return;
-    const leaf7 = cpuid(7, 0);
+    if (w.leaf1_ecx & (1 << 25) != 0) set.insert(.x86_aes);
+    if (w.max_leaf < 7) return set;
     // Scalar and 128-bit: no operating system state beyond SSE's.
-    if (leaf7[1] & (1 << 8) != 0 and leaf7[1] & (1 << 19) != 0) set.insert(.x86_bmi2_adx);
-    if (leaf7[1] & (1 << 29) != 0) set.insert(.x86_sha);
+    if (w.leaf7_ebx & (1 << 8) != 0 and w.leaf7_ebx & (1 << 19) != 0) set.insert(.x86_bmi2_adx);
+    if (w.leaf7_ebx & (1 << 29) != 0) set.insert(.x86_sha);
     // AVX state saved by the operating system: OSXSAVE, then XCR0's SSE
     // and AVX bits.
-    const osxsave = leaf1[2] & (1 << 27) != 0;
-    if (!osxsave or xgetbv() & 0b110 != 0b110) return;
-    const avx2 = leaf7[1] & (1 << 5) != 0;
+    const osxsave = w.leaf1_ecx & (1 << 27) != 0;
+    if (!osxsave or w.xcr0 & 0b110 != 0b110) return set;
+    const avx2 = w.leaf7_ebx & (1 << 5) != 0;
     if (avx2) set.insert(.x86_avx2);
-    if (avx2 and pclmul and leaf7[2] & (1 << 10) != 0) set.insert(.x86_vpclmul);
+    if (avx2 and pclmul and w.leaf7_ecx & (1 << 10) != 0) set.insert(.x86_vpclmul);
+    return set;
+}
+
+/// The features Linux's `AT_HWCAP` says on AArch64 (asm/hwcap.h for
+/// arm64), on any target.
+fn decodeHwcap(hwcap: usize) Set {
+    const bits = [_]struct { u6, Feature }{
+        .{ 7, .arm_crc }, .{ 4, .arm_pmull }, .{ 3, .arm_aes }, .{ 6, .arm_sha2 }, .{ 17, .arm_sha3 }, .{ 20, .arm_dotprod },
+    };
+    var set: Set = .empty;
+    for (bits) |b| if (@as(u64, hwcap) & (@as(u64, 1) << b[0]) != 0) set.insert(b[1]);
+    return set;
 }
 
 fn cpuid(leaf: u32, subleaf: u32) [4]u32 {
@@ -273,4 +300,103 @@ test "on this machine, what the operating system reports agrees with the feature
     if (builtin.cpu.arch == .aarch64 and builtin.os.tag == .macos) {
         inline for (.{ Feature.arm_crc, .arm_pmull, .arm_aes, .arm_sha2, .arm_sha3, .arm_dotprod }) |f| try std.testing.expect(has(f));
     }
+}
+
+/// The README's table for x86-64, as words: a feature is had exactly where
+/// every bit it names is set (leaf 7's only where the leaf exists), and an
+/// AVX one only with OSXSAVE and XCR0's SSE and AVX bits.
+const x86_table = [_]struct { feature: Feature, leaf1_ecx: u32 = 0, leaf7_ebx: u32 = 0, leaf7_ecx: u32 = 0, avx: bool = false }{
+    .{ .feature = .x86_ssse3, .leaf1_ecx = 1 << 9 },
+    .{ .feature = .x86_sse42, .leaf1_ecx = 1 << 20 },
+    .{ .feature = .x86_pclmul, .leaf1_ecx = 1 << 1 | 1 << 19 },
+    .{ .feature = .x86_aes, .leaf1_ecx = 1 << 25 },
+    .{ .feature = .x86_avx2, .leaf7_ebx = 1 << 5, .avx = true },
+    .{ .feature = .x86_vpclmul, .leaf1_ecx = 1 << 1, .leaf7_ebx = 1 << 5, .leaf7_ecx = 1 << 10, .avx = true },
+    .{ .feature = .x86_bmi2_adx, .leaf7_ebx = 1 << 8 | 1 << 19 },
+    .{ .feature = .x86_sha, .leaf7_ebx = 1 << 29 },
+};
+
+/// The README's table for Linux on AArch64: one `AT_HWCAP` bit each.
+const hwcap_table = [_]struct { Feature, u6 }{
+    .{ .arm_crc, 7 }, .{ .arm_pmull, 4 }, .{ .arm_aes, 3 }, .{ .arm_sha2, 6 }, .{ .arm_sha3, 17 }, .{ .arm_dotprod, 20 },
+};
+
+fn x86Agrees(w: X86Words) !void {
+    const set = decodeX86(w);
+    const avx = w.leaf1_ecx & (1 << 27) != 0 and w.xcr0 & 0b110 == 0b110;
+    var named: Set = .empty;
+    for (x86_table) |row| {
+        named.insert(row.feature);
+        const leaf7 = row.leaf7_ebx | row.leaf7_ecx != 0;
+        const want = w.leaf1_ecx & row.leaf1_ecx == row.leaf1_ecx and
+            (!leaf7 or (w.max_leaf >= 7 and w.leaf7_ebx & row.leaf7_ebx == row.leaf7_ebx and w.leaf7_ecx & row.leaf7_ecx == row.leaf7_ecx)) and
+            (!row.avx or avx);
+        try std.testing.expectEqual(want, set.contains(row.feature));
+    }
+    // Nothing the table does not name: no AArch64 feature from x86 words.
+    try std.testing.expect(named.supersetOf(set));
+}
+
+fn hwcapAgrees(hwcap: u64) !void {
+    const set = decodeHwcap(@truncate(hwcap));
+    var named: Set = .empty;
+    for (hwcap_table) |row| {
+        named.insert(row[0]);
+        try std.testing.expectEqual(@as(usize, @truncate(hwcap)) & (@as(usize, 1) << row[1]) != 0, set.contains(row[0]));
+    }
+    try std.testing.expect(named.supersetOf(set));
+}
+
+/// Words that reach every row: each bit set half the time, leaf 7 missing
+/// one time in eight.
+fn randomWords(random: std.Random) X86Words {
+    return .{
+        .max_leaf = if (random.uintLessThan(u8, 8) == 0) random.uintLessThan(u32, 7) else random.int(u32),
+        .leaf1_ecx = random.int(u32),
+        .leaf7_ebx = random.int(u32),
+        .leaf7_ecx = random.int(u32),
+        .xcr0 = random.int(u32),
+    };
+}
+
+test "CPUID's words decode as the README's table says, on any words" {
+    var prng: std.Random.DefaultPrng = .init(0x1ad4);
+    const random = prng.random();
+    var reached: Set = .empty;
+    for (0..20_000) |_| {
+        const w = randomWords(random);
+        try x86Agrees(w);
+        reached.setUnion(decodeX86(w));
+    }
+    // Every x86 row was had at least once.
+    for (x86_table) |row| try std.testing.expect(reached.contains(row.feature));
+    // Words a CPU gives: an AVX2 part whose operating system saves YMM state, and the same
+    // part where it does not (XCR0 without the AVX bit), which has no 256-bit feature.
+    const avx2_cpu: X86Words = .{ .max_leaf = 0xd, .leaf1_ecx = 0x7ffafbff, .leaf7_ebx = 0x029c67af, .leaf7_ecx = 0x00000400, .xcr0 = 0x7 };
+    try std.testing.expect(decodeX86(avx2_cpu).contains(.x86_avx2) and decodeX86(avx2_cpu).contains(.x86_vpclmul));
+    var no_ymm = avx2_cpu;
+    no_ymm.xcr0 = 0x3;
+    try std.testing.expect(!decodeX86(no_ymm).contains(.x86_avx2) and !decodeX86(no_ymm).contains(.x86_vpclmul));
+    try std.testing.expect(decodeX86(no_ymm).contains(.x86_ssse3));
+}
+
+test "AT_HWCAP decodes as the README's table says, on any word" {
+    var prng: std.Random.DefaultPrng = .init(0x4ca9);
+    const random = prng.random();
+    for (0..20_000) |_| try hwcapAgrees(random.int(u64));
+}
+
+test "fuzz: CPUID's and AT_HWCAP's words decode as the README's table says" {
+    try std.testing.fuzz({}, fuzzDecode, .{});
+}
+
+fn fuzzDecode(_: void, smith: *std.testing.Smith) anyerror!void {
+    try x86Agrees(.{
+        .max_leaf = smith.value(u32),
+        .leaf1_ecx = smith.value(u32),
+        .leaf7_ebx = smith.value(u32),
+        .leaf7_ecx = smith.value(u32),
+        .xcr0 = smith.value(u32),
+    });
+    try hwcapAgrees(smith.value(u64));
 }

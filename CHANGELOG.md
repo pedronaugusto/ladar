@@ -14,3 +14,7 @@ follow [Semantic Versioning](https://semver.org/).
   neither guaranteed nor detectable, else detected once per process; `available`, whether a kernel for a feature is
   worth building on the target; and `features`. Detection by `sysctlbyname` on Darwin, the auxiliary vector on Linux,
   `IsProcessorFeaturePresent` on Windows, and CPUID with XGETBV on x86-64.
+- CPUID's and `AT_HWCAP`'s words decoded by pure functions, tested against the README's feature table on any words
+  (seeded, and a fuzz target under Zig's fuzzer); XGETBV runs only where OSXSAVE says the operating system enabled it.
+- A usage example (`examples/usage.zig`), built and run with the tests, from which the README's blocks are generated.
+- `docs/design.md`.
