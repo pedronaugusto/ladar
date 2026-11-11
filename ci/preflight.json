@@ -1,0 +1,16 @@
+{
+  "sources": [
+    "src"
+  ],
+  "test_roots": [
+    "src/cpu.zig"
+  ],
+  "test_support": [],
+  "test_dependencies": [],
+  "function_exceptions": {},
+  "layout_exceptions": {},
+  "glint_paths": [
+    "src",
+    "build.zig"
+  ]
+}
