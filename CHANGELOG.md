@@ -6,6 +6,10 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Pins aegis c8982a8, still 0.2.4: six additive commits after 3c0b13e (the role declarations a linter reads, `lint_rules`), the aegis the development build's preflight selects. Nothing ladar calls changed.
+
 ### Added
 
 - The `ladar` module: `Feature`, a closed list of instruction-set extensions per architecture (AArch64's CRC32,
