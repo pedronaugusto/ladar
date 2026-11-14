@@ -18,6 +18,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const aegis = @import("aegis");
+const system = @import("system.zig");
 
 /// One extension or a group the kernels need together. NEON (AArch64) and
 /// SSE2 (x86-64) are their architectures' baselines and are not listed.
@@ -170,24 +171,19 @@ fn detectArm(set: *Set) void {
                 .{ "hw.optional.arm.FEAT_SHA3", .arm_sha3 },
                 .{ "hw.optional.arm.FEAT_DotProd", .arm_dotprod },
             };
-            for (names) |n| {
-                var value: u32 = 0;
-                var len: usize = @sizeOf(u32);
-                if (std.c.sysctlbyname(n[0], &value, &len, null, 0) == 0 and value != 0) set.insert(n[1]);
-            }
+            for (names) |n| if (system.sysctlFlag(n[0])) set.insert(n[1]);
         },
-        .linux => set.setUnion(decodeHwcap(std.os.linux.getauxval(std.elf.AT.HWCAP))),
+        .linux => set.setUnion(decodeHwcap(system.hwcap())),
         .windows => {
-            const w = std.os.windows;
-            if (w.IsProcessorFeaturePresent(.ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_crc);
+            if (system.processorFeature(.ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_crc);
             // One flag for the cryptographic extension: AES, PMULL, SHA-1 and SHA-256.
-            if (w.IsProcessorFeaturePresent(.ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
+            if (system.processorFeature(.ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
                 set.insert(.arm_pmull);
                 set.insert(.arm_aes);
                 set.insert(.arm_sha2);
             }
-            if (w.IsProcessorFeaturePresent(.ARM_SHA3_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_sha3);
-            if (w.IsProcessorFeaturePresent(.ARM_V82_DP_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_dotprod);
+            if (system.processorFeature(.ARM_SHA3_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_sha3);
+            if (system.processorFeature(.ARM_V82_DP_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_dotprod);
         },
         else => {},
     }
@@ -195,12 +191,12 @@ fn detectArm(set: *Set) void {
 
 fn detectX86(set: *Set) void {
     if (builtin.cpu.arch != .x86_64) return;
-    const max_leaf = cpuid(0, 0)[0];
-    const leaf1 = cpuid(1, 0);
-    const leaf7 = if (max_leaf >= 7) cpuid(7, 0) else [4]u32{ 0, 0, 0, 0 };
+    const max_leaf = system.cpuid(0, 0)[0];
+    const leaf1 = system.cpuid(1, 0);
+    const leaf7 = if (max_leaf >= 7) system.cpuid(7, 0) else [4]u32{ 0, 0, 0, 0 };
     // XGETBV is an invalid instruction where the operating system has not
     // enabled it (OSXSAVE clear).
-    const xcr0 = if (leaf1[2] & (1 << 27) != 0) xgetbv() else 0;
+    const xcr0 = if (leaf1[2] & (1 << 27) != 0) system.xgetbv() else 0;
     set.setUnion(decodeX86(.{ .max_leaf = max_leaf, .leaf1_ecx = leaf1[2], .leaf7_ebx = leaf7[1], .leaf7_ecx = leaf7[2], .xcr0 = xcr0 }));
 }
 
@@ -252,29 +248,6 @@ fn decodeHwcap(hwcap: usize) Set {
     return set;
 }
 
-fn cpuid(leaf: u32, subleaf: u32) [4]u32 {
-    var eax: u32 = undefined;
-    var ebx: u32 = undefined;
-    var ecx: u32 = undefined;
-    var edx: u32 = undefined;
-    asm volatile ("cpuid" // aegis: boundary(A019): CPUID writes the four registers bound to its outputs and nothing else
-        : [eax] "={eax}" (eax),
-          [ebx] "={ebx}" (ebx),
-          [ecx] "={ecx}" (ecx),
-          [edx] "={edx}" (edx),
-        : [leaf] "{eax}" (leaf),
-          [subleaf] "{ecx}" (subleaf),
-    );
-    return .{ eax, ebx, ecx, edx };
-}
-
-fn xgetbv() u32 {
-    return asm volatile ("xgetbv" // aegis: boundary(A019): XGETBV reads ECX and writes EAX and EDX, which it declares
-        : [eax] "={eax}" (-> u32),
-        : [ecx] "{ecx}" (@as(u32, 0)),
-        : .{ .edx = true });
-}
-
 test "the detected features include the guaranteed ones, and asking twice gives the same set" {
     const first = features();
     try std.testing.expect(first.supersetOf(guaranteed));
@@ -308,11 +281,11 @@ test "on this machine, what the operating system reports agrees with the feature
 const x86_table = [_]struct { feature: Feature, leaf1_ecx: u32 = 0, leaf7_ebx: u32 = 0, leaf7_ecx: u32 = 0, avx: bool = false }{
     .{ .feature = .x86_ssse3, .leaf1_ecx = 1 << 9 },
     .{ .feature = .x86_sse42, .leaf1_ecx = 1 << 20 },
-    .{ .feature = .x86_pclmul, .leaf1_ecx = 1 << 1 | 1 << 19 },
+    .{ .feature = .x86_pclmul, .leaf1_ecx = (1 << 1) | (1 << 19) },
     .{ .feature = .x86_aes, .leaf1_ecx = 1 << 25 },
     .{ .feature = .x86_avx2, .leaf7_ebx = 1 << 5, .avx = true },
     .{ .feature = .x86_vpclmul, .leaf1_ecx = 1 << 1, .leaf7_ebx = 1 << 5, .leaf7_ecx = 1 << 10, .avx = true },
-    .{ .feature = .x86_bmi2_adx, .leaf7_ebx = 1 << 8 | 1 << 19 },
+    .{ .feature = .x86_bmi2_adx, .leaf7_ebx = (1 << 8) | (1 << 19) },
     .{ .feature = .x86_sha, .leaf7_ebx = 1 << 29 },
 };
 

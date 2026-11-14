@@ -8,7 +8,8 @@ follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Pins aegis c8982a8, still 0.2.4: six additive commits after 3c0b13e (the role declarations a linter reads, `lint_rules`), the aegis the development build's preflight selects. Nothing ladar calls changed.
+- Pins aegis dc3ed602, still 0.2.4: additive commits after 3c0b13e (the role declarations a linter reads, `lint_rules`; `eql` and `compare` on the checked integers; Duration's ratio, mod, negate and abs), the aegis the development build's preflight selects. Nothing ladar calls changed.
+- glint 0.8: the calls past std's checked layer (CPUID, XGETBV, sysctl, the auxiliary vector, Windows' processor features) are `src/system.zig`, ladar's one P007 seam, each with what its caller must hold; `cpu.zig` decides from their answers.
 
 ### Added
 

@@ -28,5 +28,8 @@
         "ladar"
       ]
     }
+  },
+  "shipped": {
+    "docs/design.md": "The design, linked from the README: how each feature is detected on each system, which a consumer reads beside the source."
   }
 }

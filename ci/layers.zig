@@ -2,6 +2,7 @@
 const gantry = @import("gantry");
 
 pub const layers: []const gantry.rules.Layer = &.{
+    .{ .name = "system", .patterns = &.{"src/system.zig"} },
     .{ .name = "detection", .patterns = &.{"src/cpu.zig"} },
 };
 

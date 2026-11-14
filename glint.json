@@ -1,0 +1,11 @@
+{
+  "seams": [
+    {
+      "file": "src/system.zig",
+      "rules": [
+        "P007"
+      ],
+      "reason": "the questions ladar asks the processor and the operating system, one call each: CPUID and XGETBV, Darwin's sysctl, Linux's auxiliary vector, Windows' processor features"
+    }
+  ]
+}
