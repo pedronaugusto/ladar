@@ -15,8 +15,9 @@ follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `arm_sha1`, AArch64's SHA-1 instructions (FEAT_SHA1): `hw.optional.arm.FEAT_SHA1` on Darwin, `AT_HWCAP` bit 5 on Linux, the cryptographic flag on Windows, and guaranteed where the target has LLVM's `sha2`. relic's SHA-1 asks ladar, where it read the processor itself.
 - The `ladar` module: `Feature`, a closed list of instruction-set extensions per architecture (AArch64's CRC32,
-  PMULL, AES, SHA-256, SHA3 and DotProd; x86-64's SSSE3, SSE4.2, PCLMULQDQ, AES-NI, AVX2, VPCLMULQDQ, BMI2 with ADX,
+  PMULL, AES, SHA-1, SHA-256, SHA3 and DotProd; x86-64's SSSE3, SSE4.2, PCLMULQDQ, AES-NI, AVX2, VPCLMULQDQ, BMI2 with ADX,
   and SHA); `guaranteed`, the target's at compile time; `has`, comptime-true where guaranteed and comptime-false where
   neither guaranteed nor detectable, else detected once per process; `available`, whether a kernel for a feature is
   worth building on the target; and `features`. Detection by `sysctlbyname` on Darwin, the auxiliary vector on Linux,

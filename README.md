@@ -62,6 +62,7 @@ listed.
 | `arm_crc` | CRC32 (FEAT_CRC32) | `hw.optional.armv8_crc32` | `AT_HWCAP` bit 7 | `ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE` |
 | `arm_pmull` | PMULL, PMULL2 (FEAT_PMULL) | `hw.optional.arm.FEAT_PMULL` | `AT_HWCAP` bit 4 | `ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE` |
 | `arm_aes` | AES (FEAT_AES) | `hw.optional.arm.FEAT_AES` | `AT_HWCAP` bit 3 | `ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE` |
+| `arm_sha1` | SHA-1 (FEAT_SHA1) | `hw.optional.arm.FEAT_SHA1` | `AT_HWCAP` bit 5 | `ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE` |
 | `arm_sha2` | SHA-256 (FEAT_SHA256) | `hw.optional.arm.FEAT_SHA256` | `AT_HWCAP` bit 6 | `ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE` |
 | `arm_sha3` | EOR3 and the rest of FEAT_SHA3 | `hw.optional.arm.FEAT_SHA3` | `AT_HWCAP` bit 17 | `ARM_SHA3_INSTRUCTIONS_AVAILABLE` |
 | `arm_dotprod` | UDOT, SDOT (FEAT_DotProd) | `hw.optional.arm.FEAT_DotProd` | `AT_HWCAP` bit 20 | `ARM_V82_DP_INSTRUCTIONS_AVAILABLE` |

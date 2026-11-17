@@ -30,10 +30,10 @@ lock and monotonic ordering suffices: any thread sees either nothing (and detect
 
 A closed list per architecture; NEON and SSE2 are their architectures' baselines and are not listed.
 
-- **AArch64**: `arm_crc`, `arm_pmull`, `arm_aes`, `arm_sha2`, `arm_sha3`, `arm_dotprod`. Darwin: `sysctlbyname`
-  (`hw.optional.armv8_crc32`, `hw.optional.arm.FEAT_*`). Linux: `getauxval(AT_HWCAP)`, bits 7, 4, 3, 6, 17, 20
-  (asm/hwcap.h). Windows: `IsProcessorFeaturePresent`, whose one cryptographic flag gives AES, PMULL and SHA-256
-  together. Any other operating system: the target's guarantees only, no run-time check.
+- **AArch64**: `arm_crc`, `arm_pmull`, `arm_aes`, `arm_sha1`, `arm_sha2`, `arm_sha3`, `arm_dotprod`. Darwin:
+  `sysctlbyname` (`hw.optional.armv8_crc32`, `hw.optional.arm.FEAT_*`). Linux: `getauxval(AT_HWCAP)`, bits 7, 4, 3,
+  5, 6, 17, 20 (asm/hwcap.h). Windows: `IsProcessorFeaturePresent`, whose one cryptographic flag gives AES, PMULL,
+  SHA-1 and SHA-256 together. Any other operating system: the target's guarantees only, no run-time check.
 - **x86-64**: `x86_ssse3`, `x86_sse42`, `x86_pclmul` (with SSE4.1), `x86_aes`, `x86_avx2`, `x86_vpclmul`,
   `x86_bmi2_adx`, `x86_sha`, from CPUID on every operating system. Leaf 7 is read only where leaf 0 says it exists;
   the AVX features also need OSXSAVE and XCR0's SSE and AVX bits, and XGETBV is executed only where OSXSAVE is set

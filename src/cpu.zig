@@ -29,6 +29,8 @@ pub const Feature = enum(u5) {
     arm_pmull,
     /// AArch64 AES instructions (FEAT_AES).
     arm_aes,
+    /// AArch64 SHA-1 instructions (FEAT_SHA1).
+    arm_sha1,
     /// AArch64 SHA-256 instructions (FEAT_SHA256).
     arm_sha2,
     /// AArch64 three-way exclusive or, EOR3 (FEAT_SHA3).
@@ -65,6 +67,8 @@ pub const guaranteed: Set = blk: {
             // LLVM's `aes` holds both AES and PMULL (FEAT_AES and FEAT_PMULL).
             if (cpu.has(.aarch64, .aes)) set.insert(.arm_pmull);
             if (cpu.has(.aarch64, .aes)) set.insert(.arm_aes);
+            // LLVM's `sha2` holds both SHA-1 and SHA-256 (FEAT_SHA1 and FEAT_SHA256).
+            if (cpu.has(.aarch64, .sha2)) set.insert(.arm_sha1);
             if (cpu.has(.aarch64, .sha2)) set.insert(.arm_sha2);
             if (cpu.has(.aarch64, .sha3)) set.insert(.arm_sha3);
             if (cpu.has(.aarch64, .dotprod)) set.insert(.arm_dotprod);
@@ -121,7 +125,7 @@ pub fn features() Set {
 fn detectable(feature: Feature) bool {
     return switch (builtin.cpu.arch) {
         .aarch64 => switch (feature) {
-            .arm_crc, .arm_pmull, .arm_aes, .arm_sha2, .arm_sha3, .arm_dotprod => switch (builtin.os.tag) {
+            .arm_crc, .arm_pmull, .arm_aes, .arm_sha1, .arm_sha2, .arm_sha3, .arm_dotprod => switch (builtin.os.tag) {
                 .macos, .ios, .tvos, .watchos, .visionos, .linux, .windows => true,
                 else => false,
             },
@@ -167,6 +171,7 @@ fn detectArm(set: *Set) void {
                 .{ "hw.optional.armv8_crc32", .arm_crc },
                 .{ "hw.optional.arm.FEAT_PMULL", .arm_pmull },
                 .{ "hw.optional.arm.FEAT_AES", .arm_aes },
+                .{ "hw.optional.arm.FEAT_SHA1", .arm_sha1 },
                 .{ "hw.optional.arm.FEAT_SHA256", .arm_sha2 },
                 .{ "hw.optional.arm.FEAT_SHA3", .arm_sha3 },
                 .{ "hw.optional.arm.FEAT_DotProd", .arm_dotprod },
@@ -180,6 +185,7 @@ fn detectArm(set: *Set) void {
             if (system.processorFeature(.ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
                 set.insert(.arm_pmull);
                 set.insert(.arm_aes);
+                set.insert(.arm_sha1);
                 set.insert(.arm_sha2);
             }
             if (system.processorFeature(.ARM_SHA3_INSTRUCTIONS_AVAILABLE)) set.insert(.arm_sha3);
@@ -241,7 +247,7 @@ fn decodeX86(w: X86Words) Set {
 /// arm64), on any target.
 fn decodeHwcap(hwcap: usize) Set {
     const bits = [_]struct { u6, Feature }{
-        .{ 7, .arm_crc }, .{ 4, .arm_pmull }, .{ 3, .arm_aes }, .{ 6, .arm_sha2 }, .{ 17, .arm_sha3 }, .{ 20, .arm_dotprod },
+        .{ 7, .arm_crc }, .{ 4, .arm_pmull }, .{ 3, .arm_aes }, .{ 5, .arm_sha1 }, .{ 6, .arm_sha2 }, .{ 17, .arm_sha3 }, .{ 20, .arm_dotprod },
     };
     var set: Set = .empty;
     for (bits) |b| if (@as(u64, hwcap) & (@as(u64, 1) << b[0]) != 0) set.insert(b[1]);
@@ -271,7 +277,7 @@ test "a feature is had only where it is available, and the guaranteed ones alway
 test "on this machine, what the operating system reports agrees with the features" {
     // Apple silicon has every AArch64 feature listed; Darwin's sysctl says so.
     if (builtin.cpu.arch == .aarch64 and builtin.os.tag == .macos) {
-        inline for (.{ Feature.arm_crc, .arm_pmull, .arm_aes, .arm_sha2, .arm_sha3, .arm_dotprod }) |f| try std.testing.expect(has(f));
+        inline for (.{ Feature.arm_crc, .arm_pmull, .arm_aes, .arm_sha1, .arm_sha2, .arm_sha3, .arm_dotprod }) |f| try std.testing.expect(has(f));
     }
 }
 
@@ -291,7 +297,7 @@ const x86_table = [_]struct { feature: Feature, leaf1_ecx: u32 = 0, leaf7_ebx: u
 
 /// The README's table for Linux on AArch64: one `AT_HWCAP` bit each.
 const hwcap_table = [_]struct { Feature, u6 }{
-    .{ .arm_crc, 7 }, .{ .arm_pmull, 4 }, .{ .arm_aes, 3 }, .{ .arm_sha2, 6 }, .{ .arm_sha3, 17 }, .{ .arm_dotprod, 20 },
+    .{ .arm_crc, 7 }, .{ .arm_pmull, 4 }, .{ .arm_aes, 3 }, .{ .arm_sha1, 5 }, .{ .arm_sha2, 6 }, .{ .arm_sha3, 17 }, .{ .arm_dotprod, 20 },
 };
 
 fn x86Agrees(w: X86Words) !void {
