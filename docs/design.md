@@ -7,10 +7,14 @@ exports no build helper; it does no I/O beyond the operating system's own featur
 This describes the implementation in this repository. Change it with the code when a feature, a detection or a
 rule changes.
 
+**A package of its own.** Its users sit in unrelated domains (checksums in warp, regex prefilters in spectra, TLS in
+cloak), and none should pull another's package for a CPU query; so the query is one small package on std and aegis.
+
 ## Module
 
 One module, `ladar`, root `src/cpu.zig`, importing aegis alone (for `Atomic`). Every user imports this one module,
-so a process has one detection cell.
+so a process has one detection cell. `src/system.zig` holds the raw questions, each one call past std (CPUID,
+XGETBV, `sysctlbyname`, `getauxval`, `IsProcessorFeaturePresent`), and decides nothing; `cpu.zig` reads the answers.
 
 - `Feature`, `Set` (an `EnumSet`); `guaranteed`, the target's set at compile time, from `builtin.cpu`.
 - `has(comptime f)`: comptime-true where guaranteed (no load, no check: the caller enters the kernel directly);
@@ -56,6 +60,8 @@ under the other backend they are had only where the target guarantees AVX2, so e
 - Kernels stay with their users, each a module built with the feature enabled, since Zig sets CPU features per
   module. Code outside such a module is never compiled with a feature the CPU may lack.
 - Choosing code by CPU model (a MIDR or family-and-model read) is not an instruction-set question and is not here.
+- Stability (README): a listed feature keeps its name and meaning, and its answer only grows; an addition is a minor
+  version, so users do not switch over `Feature` exhaustively.
 
 ## Validation
 
