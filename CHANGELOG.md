@@ -13,6 +13,7 @@ follow [Semantic Versioning](https://semver.org/).
 - Pins aegis f52eabe (the aegis line, with `Id.raws`), the one aegis the family moves to together; the development build pins preflight ci-standard f991816 and shakedown 327bc61, whose fuzz runner takes the options preflight passes it; ci.yml regenerated (`bay generate`).
 - Pins aegis dc3ed602, still 0.2.4: additive commits after 3c0b13e (the role declarations a linter reads, `lint_rules`; `eql` and `compare` on the checked integers; Duration's ratio, mod, negate and abs), the aegis the development build's preflight selects. Nothing ladar calls changed.
 - glint 0.8: the calls past std's checked layer (CPUID, XGETBV, sysctl, the auxiliary vector, Windows' processor features) are `src/system.zig`, ladar's one P007 seam, each with what its caller must hold; `cpu.zig` decides from their answers.
+- Pins aegis 0.4.0.
 
 ### Added
 
