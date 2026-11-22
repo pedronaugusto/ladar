@@ -98,7 +98,8 @@ ThreadSanitizer.
 
 ## Status
 
-Unreleased; 0.1.0 is the first release.
+0.1.0 is the first release. ladar is 0.x and tracks Zig 0.17.x; the stability rule above says what a minor release
+may change.
 
 ## License
 
