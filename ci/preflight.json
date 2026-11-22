@@ -1,4 +1,5 @@
 {
+  "policy": "family",
   "sources": [
     "src"
   ],
@@ -29,6 +30,13 @@
       ]
     }
   },
+  "extra_checks": [
+    [
+      "zig",
+      "build",
+      "check-consumer"
+    ]
+  ],
   "shipped": {
     "docs/design.md": "The design, linked from the README: how each feature is detected on each system, which a consumer reads beside the source."
   }

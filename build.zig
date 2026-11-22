@@ -51,4 +51,6 @@ pub fn dev(b: *std.Build, tools: type) void {
     // The release tier runs the decoding properties under Zig's fuzzer, and the detection
     // cell under ThreadSanitizer.
     tools.preflight.addCi(b, p, .{ .tests = test_step, .portable_tests = true, .hardened = .{ .fuzz_step = "test", .tsan_step = "test" } });
+    // A project that depends on ladar by path, with aegis to fetch: the build a consumer gets.
+    tools.preflight.addConsumerCheck(b, p, .{ .package = "ladar", .program = p.path("ci/consumer.zig"), .packages = &.{p.dependency("aegis", .{ .target = target, .optimize = optimize })} });
 }
