@@ -6,6 +6,10 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Pins aegis 0.5.0.
+
 ## [0.1.0] - 2026-11-22
 
 ### Added
