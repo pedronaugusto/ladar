@@ -366,16 +366,19 @@ test "AT_HWCAP decodes as the README's table says, on any word" {
 }
 
 test "fuzz: CPUID's and AT_HWCAP's words decode as the README's table says" {
-    try std.testing.fuzz({}, fuzzDecode, .{});
-}
-
-fn fuzzDecode(_: void, smith: *std.testing.Smith) anyerror!void {
-    try x86Agrees(.{
-        .max_leaf = smith.value(u32),
-        .leaf1_ecx = smith.value(u32),
-        .leaf7_ebx = smith.value(u32),
-        .leaf7_ecx = smith.value(u32),
-        .xcr0 = smith.value(u32),
-    });
-    try hwcapAgrees(smith.value(u64));
+    const shakedown = @import("shakedown");
+    const Property = struct {
+        fn decodesAsTheTable(_: void, case: *shakedown.Case) !void {
+            const s = case.source;
+            try x86Agrees(.{
+                .max_leaf = shakedown.gen.int(s, u32),
+                .leaf1_ecx = shakedown.gen.int(s, u32),
+                .leaf7_ebx = shakedown.gen.int(s, u32),
+                .leaf7_ecx = shakedown.gen.int(s, u32),
+                .xcr0 = shakedown.gen.int(s, u32),
+            });
+            try hwcapAgrees(shakedown.gen.int(s, u64));
+        }
+    };
+    try shakedown.check(std.testing.allocator, {}, Property.decodesAsTheTable, .{ .cases = 2000, .seed = 0x1ad4 });
 }

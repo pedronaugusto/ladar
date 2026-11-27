@@ -14,7 +14,8 @@ const package_references = [_]gantry.rules.ReferenceRule{
     .{
         .name = "named dependencies",
         .unresolved_only = true,
-        .except_targets = &.{ "std", "aegis", "builtin" },
+        // shakedown is the tests' alone: ci/preflight.json names it a test dependency.
+        .except_targets = &.{ "std", "aegis", "builtin", "shakedown" },
     },
     .{ .name = "source siblings", .suffix = ".zig", .relative = true, .except_targets = &.{"src/**"} },
 };
